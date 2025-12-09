@@ -399,3 +399,27 @@ progress {
   width: 100%;
   height: 25px;
 }
+
+/* DVD Screen styles */
+.dvd-screen code {
+  background: #fff;
+  padding: 2px 4px;
+  border: 1px solid #808080;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+}
+
+.status-success {
+  background: #e8f5e9 !important;
+  border-color: #4caf50 !important;
+}
+
+.status-error {
+  background: #ffebee !important;
+  border-color: #f44336 !important;
+}
+
+.status-pending {
+  background: #fff !important;
+  border-color: #808080 !important;
+}

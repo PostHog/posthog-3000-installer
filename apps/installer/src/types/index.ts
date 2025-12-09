@@ -1,5 +1,13 @@
 // Shared type definitions for the installer
 
+export interface DVDState {
+  selectedDrive: string | null
+  driveName: string | null
+  fileVerified: boolean
+  checking: boolean
+  error: string | null
+}
+
 export interface InstallerState {
   currentScreen: number
   licenseAccepted: boolean
@@ -8,6 +16,7 @@ export interface InstallerState {
   configData: ConfigData
   installComplete: boolean
   logoClickCount: number
+  dvdState: DVDState
 }
 
 export interface ConfigData {

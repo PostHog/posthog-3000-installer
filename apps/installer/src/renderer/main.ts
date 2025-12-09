@@ -6,6 +6,7 @@ import './styles.css'
 
 import { welcomeScreen } from './screens/welcome'
 import { licenseScreen } from './screens/license'
+import { dvdScreen } from './screens/dvd'
 import { directoryScreen } from './screens/directory'
 import { componentsScreen } from './screens/components'
 import { configurationScreen } from './screens/configuration'
@@ -25,13 +26,21 @@ const state: InstallerState = {
     apiKey: ''
   },
   installComplete: false,
-  logoClickCount: 0
+  logoClickCount: 0,
+  dvdState: {
+    selectedDrive: null,
+    driveName: null,
+    fileVerified: false,
+    checking: false,
+    error: null
+  }
 }
 
 // Screen definitions
 const screens: Screen[] = [
   welcomeScreen,
   licenseScreen,
+  dvdScreen,
   directoryScreen,
   componentsScreen,
   configurationScreen,
@@ -100,8 +109,8 @@ function renderScreen(): void {
 function updateNavigation(): void {
   const screen = screens[state.currentScreen]
 
-  // Back button
-  backBtn.disabled = state.currentScreen === 0 || state.currentScreen === 5 || state.currentScreen === 6
+  // Back button (disabled on welcome, installing, and finish screens)
+  backBtn.disabled = state.currentScreen === 0 || state.currentScreen === 6 || state.currentScreen === 7
 
   // Next button - check if screen allows proceeding
   if (screen.canProceed) {
@@ -138,8 +147,8 @@ function goNext(): void {
     screen.onNext(state)
   }
 
-  // Special handling for installing screen
-  if (state.currentScreen === 5) {
+  // Special handling for installing screen (now at index 6)
+  if (state.currentScreen === 6) {
     // Installing screen will advance automatically
     return
   }

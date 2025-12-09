@@ -1,13 +1,24 @@
-import { contextBridge } from 'electron'
-import type { ElectronAPI } from '../types/electron'
+import { contextBridge, ipcRenderer } from 'electron'
+import type { ElectronAPI, DVDCheckResult, FileCheckResult } from '../types/electron'
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 const electronAPI: ElectronAPI = {
-  // Add any IPC methods here if needed in the future
-  // For now, this app is pure UI with no need for main process communication
   platform: process.platform,
-  version: '98.0.1998'
+  version: '98.0.1998',
+
+  // DVD Detection methods
+  detectDVDDrives: (): Promise<DVDCheckResult> => {
+    return ipcRenderer.invoke('detect-dvd-drives')
+  },
+
+  getAllVolumes: (): Promise<DVDCheckResult> => {
+    return ipcRenderer.invoke('get-all-volumes')
+  },
+
+  checkDVDFile: (drivePath: string, fileName: string): Promise<FileCheckResult> => {
+    return ipcRenderer.invoke('check-dvd-file', drivePath, fileName)
+  }
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
