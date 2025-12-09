@@ -1,5 +1,9 @@
 // Main installer logic and state management
 
+// Import CSS
+import '98.css'
+import './styles.css'
+
 import { welcomeScreen } from './screens/welcome'
 import { licenseScreen } from './screens/license'
 import { directoryScreen } from './screens/directory'
