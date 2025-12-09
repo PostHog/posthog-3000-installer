@@ -33,14 +33,3 @@ Thumbs.db
 *.exe
 *.snap
 
-# Assets (users should add their own)
-resources/icon.png
-src/renderer/assets/*.png
-src/renderer/assets/*.jpg
-src/renderer/assets/*.wav
-src/renderer/assets/*.mp3
-**/resources/icon.png
-**/src/renderer/assets/*.png
-**/src/renderer/assets/*.jpg
-**/src/renderer/assets/*.wav
-**/src/renderer/assets/*.mp3
