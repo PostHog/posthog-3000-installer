@@ -2,14 +2,7 @@
 // System tray app with Windows 98 aesthetic
 
 import { join } from "node:path";
-import {
-  app,
-  BrowserWindow,
-  type Event,
-  Menu,
-  nativeImage,
-  Tray,
-} from "electron";
+import { app, BrowserWindow, Menu, nativeImage, Tray } from "electron";
 
 let tray: Tray | null = null;
 let aboutWindow: BrowserWindow | null = null;
@@ -24,7 +17,7 @@ function createTray(): void {
     const iconPath = join(__dirname, "../../resources/icon.png");
     const loadedIcon = nativeImage.createFromPath(iconPath);
     if (!loadedIcon.isEmpty()) {
-      tray = new Tray(loadedIcon.resize({ width: 16, height: 16 }));
+      tray = new Tray(loadedIcon.resize({ width: 32, height: 32 }));
     } else {
       tray = new Tray(icon);
     }
@@ -77,8 +70,7 @@ function showAboutWindow(): void {
     width: 400,
     height: 300,
     resizable: false,
-    maximizable: false,
-    minimizable: false,
+    frame: false, // Make window frameless (chromeless)
     backgroundColor: "#c0c0c0",
     title: "About PostHog 3000",
     webPreferences: {
@@ -86,8 +78,6 @@ function showAboutWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    // Remove menu bar
-    autoHideMenuBar: true,
   });
 
   // Load the about page

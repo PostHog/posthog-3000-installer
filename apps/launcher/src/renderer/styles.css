@@ -14,13 +14,13 @@ body {
   justify-content: center;
   height: 100vh;
   width: 100vw;
-  padding: 10px;
   box-sizing: border-box;
 }
 
 .window {
   width: 100%;
-  max-width: 380px;
+  height: 100%;
+  margin: 0;
 }
 
 .window-body {
@@ -78,11 +78,28 @@ body {
   padding: 4px 20px;
 }
 
+/* Title bar - make it draggable */
+.title-bar {
+  cursor: move;
+  user-select: none;
+}
+
 /* Title bar controls */
 .title-bar-controls button {
   min-width: 16px;
   min-height: 14px;
   padding: 0;
+  cursor: pointer;
+}
+
+.title-bar-controls button:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+/* Add subtle shadow for chromeless window */
+.window {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2),
+              0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* Ensure window is centered and sized correctly */
