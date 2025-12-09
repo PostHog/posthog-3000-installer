@@ -10,15 +10,20 @@ function createWindow(): void {
     width: 800,
     height: 600,
     resizable: true,
-    frame: true, // Keep OS frame for cross-platform compatibility
+    frame: false, // Remove OS frame for fullscreen window look
     backgroundColor: "#c0c0c0", // Windows 98 gray
     title: "PostHog 3000 Setup",
+    show: false, // Don't show until maximized
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   })
+
+  // Set to full screen (not macOS fullscreen mode, just covers entire screen)
+  mainWindow.setSimpleFullScreen(true)
+  mainWindow.show()
 
   // Load the index.html of the app
   if (process.env.NODE_ENV === "development") {
