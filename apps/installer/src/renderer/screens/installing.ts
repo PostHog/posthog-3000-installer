@@ -54,78 +54,173 @@ export const installingScreen: Screen = {
   },
 }
 
-function startFakeInstallation(state: InstallerState): void {
-  const progressBar = document.getElementById(
-    "install-progress"
-  ) as HTMLProgressElement
-  const fileList = document.getElementById("file-list")!
-  const statusText = document.getElementById("status-text")!
+async function startFakeInstallation(state: InstallerState): Promise<void> {
+  const progressBar = document.getElementById('install-progress') as HTMLProgressElement
+  const fileList = document.getElementById('file-list')!
+  const statusText = document.getElementById('status-text')!
 
-  let currentFile = 0
+  fileList.innerHTML = ''
 
-  const statuses: string[] = [
-    "Extracting files...",
-    "Copying files to destination...",
-    "Registering COM components...",
-    "Creating program shortcuts...",
-    "Configuring PostHog 3000 Demo...",
-    "Finalizing installation...",
-  ]
+  // Helper to add log message
+  const addLogMessage = (message: string, color: string = '#000000') => {
+    const logItem = document.createElement('div')
+    logItem.className = 'file-item'
+    logItem.style.color = color
+    logItem.textContent = message
+    fileList.appendChild(logItem)
+    fileList.scrollTop = fileList.scrollHeight
+  }
 
-  let statusIndex = 0
+  try {
+    // Step 1: Check for multi-DVD installation
+    progressBar.value = 5
+    statusText.textContent = 'Checking for installation media...'
+    addLogMessage('Checking DVD configuration...')
 
-  fileList.innerHTML = ""
+    const dvdInfo = await window.electronAPI?.getMissingDVDs()
 
-  const interval = setInterval(() => {
-    if (currentFile < FAKE_FILES.length) {
-      // Add file to list
-      const fileItem = document.createElement("div")
-      fileItem.className = "file-item"
+    if (dvdInfo && dvdInfo.total > 1) {
+      addLogMessage(`Multi-DVD installation detected (${dvdInfo.total} discs)`, '#0000FF')
 
-      const actions: string[] = [
-        "Extracting:",
-        "Copying:",
-        "Installing:",
-        "Registering:",
-      ]
-      const action = actions[Math.floor(Math.random() * actions.length)]
+      // Sequential disc processing
+      for (let discNum = 1; discNum <= dvdInfo.total; discNum++) {
+        statusText.textContent = `Processing Disc ${discNum} of ${dvdInfo.total}...`
+        addLogMessage(`\n=== Disc ${discNum} of ${dvdInfo.total} ===`, '#0000FF')
 
-      fileItem.textContent = `${action} ${INSTALL_PATH}\\${FAKE_FILES[currentFile]}`
-      fileList.appendChild(fileItem)
+        // Check if this disc is currently mounted
+        const currentInfo = await window.electronAPI?.getMissingDVDs()
+        const isDiscMounted = currentInfo && !currentInfo.missing.includes(discNum)
 
-      // Scroll to bottom
-      fileList.scrollTop = fileList.scrollHeight
+        if (!isDiscMounted) {
+          // Prompt user to insert disc
+          addLogMessage(`Please insert Disc ${discNum}`, '#FF8800')
 
-      // Update progress
-      const progress = Math.floor(((currentFile + 1) / FAKE_FILES.length) * 100)
-      progressBar.value = progress
+          const confirmed = confirm(`Please insert PostHog 3000 Installation Disc ${discNum} of ${dvdInfo.total}\n\nClick OK when ready.`)
+          if (!confirmed) {
+            throw new Error('Installation cancelled by user')
+          }
 
-      // Update status occasionally
-      if (currentFile % 2 === 0 && statusIndex < statuses.length) {
-        statusText.textContent = statuses[statusIndex]
-        statusIndex++
+          // Wait a moment for disc to mount
+          await new Promise(resolve => setTimeout(resolve, 2000))
+
+          // Verify disc is now mounted
+          const verifyInfo = await window.electronAPI?.getMissingDVDs()
+          if (verifyInfo && verifyInfo.missing.includes(discNum)) {
+            throw new Error(`Disc ${discNum} not detected. Please ensure it is properly inserted.`)
+          }
+
+          addLogMessage(`Disc ${discNum} detected ✓`, '#008000')
+        } else {
+          addLogMessage(`Disc ${discNum} already mounted ✓`, '#008000')
+        }
+
+        // Copy tar parts from this disc
+        if (window.electronAPI?.copyTarPartsFromDisc) {
+          addLogMessage(`Copying files from Disc ${discNum}...`)
+          const copyResult = await window.electronAPI.copyTarPartsFromDisc()
+
+          if (!copyResult.success) {
+            throw new Error(copyResult.error || 'Failed to copy files from disc')
+          }
+
+          if (copyResult.partsCopied > 0) {
+            addLogMessage(`Copied ${copyResult.partsCopied} file(s) from Disc ${discNum} ✓`, '#008000')
+          } else {
+            addLogMessage(`No new files on Disc ${discNum}`, '#808080')
+          }
+        }
+
+        // Update progress
+        const discProgress = 10 + Math.floor((discNum / dvdInfo.total) * 10)
+        progressBar.value = discProgress
       }
 
-      currentFile++
+      addLogMessage('\nAll discs processed ✓', '#008000')
+    } else if (dvdInfo && dvdInfo.total === 1) {
+      addLogMessage('Single disc installation')
+
+      // Copy tar parts from single disc
+      if (window.electronAPI?.copyTarPartsFromDisc) {
+        const copyResult = await window.electronAPI.copyTarPartsFromDisc()
+        if (copyResult.partsCopied > 0) {
+          addLogMessage(`Copied ${copyResult.partsCopied} file(s) ✓`, '#008000')
+        }
+      }
     } else {
-      // Installation complete
-      clearInterval(interval)
-
-      statusText.textContent = "Installation complete!"
-
-      const completeItem = document.createElement("div")
-      completeItem.className = "file-item"
-      completeItem.style.color = "#008000"
-      completeItem.style.fontWeight = "bold"
-      completeItem.textContent = "Setup completed successfully."
-      fileList.appendChild(completeItem)
-
-      fileList.scrollTop = fileList.scrollHeight
-
-      state.installComplete = true
-
-      // Auto-advance to finish screen after a short delay
-      setTimeout(advanceFromInstalling, 1500)
+      addLogMessage('No DVD installation detected')
     }
-  }, 200) // Install a file every 200ms
+
+    // Step 2: Install PostHogStack.pkg
+    progressBar.value = 20
+    statusText.textContent = 'Installing PostHogStack...'
+    addLogMessage('Starting PostHogStack installation...')
+
+    if (window.electronAPI?.installPKG) {
+      addLogMessage('This will prompt for administrator password...', '#0000FF')
+      const pkgResult = await window.electronAPI.installPKG()
+
+      if (pkgResult.success) {
+        addLogMessage('PostHogStack installed successfully ✓', '#008000')
+      } else {
+        throw new Error(pkgResult.error || 'PKG installation failed')
+      }
+    } else {
+      addLogMessage('Skipping PKG installation (API not available)', '#808080')
+    }
+
+    // Step 3: Install Launcher
+    progressBar.value = 60
+    statusText.textContent = 'Installing Launcher...'
+    addLogMessage('Installing PostHog 3000 Launcher...')
+
+    if (window.electronAPI?.installLauncher) {
+      const launcherResult = await window.electronAPI.installLauncher()
+
+      if (launcherResult.success) {
+        addLogMessage(`Launcher installed to ${launcherResult.launcherPath} ✓`, '#008000')
+      } else {
+        // Non-fatal error
+        addLogMessage(`Warning: ${launcherResult.error}`, '#FF8800')
+      }
+    } else {
+      addLogMessage('Skipping Launcher installation (API not available)', '#808080')
+    }
+
+    // Step 4: Fake remaining installation for aesthetics
+    progressBar.value = 80
+    statusText.textContent = 'Finalizing installation...'
+
+    for (let i = 0; i < 5; i++) {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      addLogMessage(`${state.installPath}\\${FAKE_FILES[i]}`)
+    }
+
+    // Complete
+    progressBar.value = 100
+    statusText.textContent = 'Installation complete!'
+
+    const completeItem = document.createElement('div')
+    completeItem.className = 'file-item'
+    completeItem.style.color = '#008000'
+    completeItem.style.fontWeight = 'bold'
+    completeItem.textContent = 'Setup completed successfully.'
+    fileList.appendChild(completeItem)
+    fileList.scrollTop = fileList.scrollHeight
+
+    state.installComplete = true
+
+    // Auto-advance
+    setTimeout(() => {
+      advanceFromInstalling()
+    }, 1500)
+
+  } catch (error) {
+    progressBar.value = 0
+    statusText.textContent = 'Installation failed'
+    addLogMessage(`Error: ${error}`, '#FF0000')
+    addLogMessage('Please check the logs and try again.', '#FF0000')
+
+    // Don't auto-advance on error
+    state.installComplete = false
+  }
 }

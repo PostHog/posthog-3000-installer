@@ -39,22 +39,37 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
-        "dmg"
-      ],
-      "icon": "resources/icon.png"
+        {
+          "target": "dmg",
+          "arch": ["arm64"]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "PostHog 3000 Setup",
+      "background": null,
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 270,
+          "y": 180,
+          "type": "file"
+        }
+      ]
     },
     "win": {
       "target": [
         "nsis"
-      ],
-      "icon": "resources/icon.png"
+      ]
     },
     "linux": {
       "target": [
         "AppImage"
       ],
-      "category": "Development",
-      "icon": "resources/icon.png"
+      "category": "Development"
     },
     "nsis": {
       "oneClick": false,
