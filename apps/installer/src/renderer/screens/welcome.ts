@@ -1,22 +1,22 @@
-// Welcome screen
-
-import type { Screen, InstallerState } from '../../types'
+import type { Screen } from "../../types"
 
 export const welcomeScreen: Screen = {
-  render(state: InstallerState): HTMLElement {
-    const screen = document.createElement('div')
-    screen.className = 'screen welcome-screen'
+  render(): HTMLElement {
+    const screen = document.createElement("div")
+    screen.className = "screen welcome-screen"
     screen.innerHTML = `
       <div class="welcome-title">Welcome to the PostHog 3000 Setup Wizard</div>
 
       <p class="welcome-text">
-        This wizard will guide you through the installation of <strong>PostHog 3000</strong>,
-        the premier analytics platform for engineers who appreciate classic software design.
+        This wizard will guide you through the installation of the <strong>PostHog 3000 Demo</strong>,
+        an interactive showcase of the premier analytics platform for engineers who appreciate 
+        classic software design.
       </p>
 
       <p class="welcome-text">
-        PostHog 3000 provides product analytics, session replay, feature flags, A/B testing,
-        and more - all with the timeless elegance of 1998 software aesthetics.
+        The demo will be installed on your computer so you can explore PostHog's 
+        product analytics, session replay, feature flags, and more - all with the 
+        timeless elegance of 1998 software aesthetics.
       </p>
 
       <p class="welcome-text">
@@ -32,8 +32,8 @@ export const welcomeScreen: Screen = {
       <fieldset style="margin-top: 30px; padding: 10px;">
         <legend>System Information</legend>
         <div style="font-size: 11px;">
-          <div>Platform: ${window.electronAPI?.platform || 'web'}</div>
-          <div>Version: ${window.electronAPI?.version || '98.0.1998'}</div>
+          <div>Platform: ${window.electronAPI?.platform || "web"}</div>
+          <div>Version: ${window.electronAPI?.version || "98.0.1998"}</div>
           <div>Free Disk Space: 420 MB (estimated)</div>
         </div>
       </fieldset>
@@ -41,7 +41,7 @@ export const welcomeScreen: Screen = {
     return screen
   },
 
-  canProceed(state: InstallerState): boolean {
+  canProceed(): boolean {
     return true
-  }
+  },
 }

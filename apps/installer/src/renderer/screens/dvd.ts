@@ -1,12 +1,10 @@
-// DVD Detection screen
-
-import type { Screen, InstallerState } from '../../types'
-import type { DVDDrive } from '../../types/electron'
+import type { Screen, InstallerState } from "../../types"
+import type { DVDDrive } from "../../types/electron"
 
 export const dvdScreen: Screen = {
   render(state: InstallerState): HTMLElement {
-    const screen = document.createElement('div')
-    screen.className = 'screen dvd-screen'
+    const screen = document.createElement("div")
+    screen.className = "screen dvd-screen"
 
     const { dvdState } = state
     const statusMessage = getStatusMessage(dvdState)
@@ -32,7 +30,9 @@ export const dvdScreen: Screen = {
 
         <div style="display: flex; gap: 10px; margin-top: 10px;">
           <button id="refresh-drives-btn" style="flex: 1;">Refresh Drives</button>
-          <button id="check-dvd-btn" style="flex: 1;" ${!dvdState.selectedDrive ? 'disabled' : ''}>
+          <button id="check-dvd-btn" style="flex: 1;" ${
+            !dvdState.selectedDrive ? "disabled" : ""
+          }>
             Check DVD
           </button>
         </div>
@@ -50,30 +50,37 @@ export const dvdScreen: Screen = {
         on the selected drive to verify it is a valid PostHog installation disc.
       </p>
     `
+
     return screen
   },
 
   setupListeners(state, updateNav, _goNext): void {
-    const driveSelect = document.getElementById('drive-select') as HTMLSelectElement
-    const refreshBtn = document.getElementById('refresh-drives-btn') as HTMLButtonElement
-    const checkBtn = document.getElementById('check-dvd-btn') as HTMLButtonElement
-    const statusContainer = document.getElementById('status-container')!
+    const driveSelect = document.getElementById(
+      "drive-select"
+    ) as HTMLSelectElement
+    const refreshBtn = document.getElementById(
+      "refresh-drives-btn"
+    ) as HTMLButtonElement
+    const checkBtn = document.getElementById(
+      "check-dvd-btn"
+    ) as HTMLButtonElement
+    const statusContainer = document.getElementById("status-container")!
 
     // Load drives on screen load
     loadDrives(driveSelect, state, statusContainer)
 
     // Refresh drives button
-    refreshBtn.addEventListener('click', async () => {
+    refreshBtn.addEventListener("click", async () => {
       refreshBtn.disabled = true
-      refreshBtn.textContent = 'Scanning...'
+      refreshBtn.textContent = "Scanning..."
       await loadDrives(driveSelect, state, statusContainer)
       refreshBtn.disabled = false
-      refreshBtn.textContent = 'Refresh Drives'
+      refreshBtn.textContent = "Refresh Drives"
       updateNav()
     })
 
     // Drive selection change
-    driveSelect.addEventListener('change', () => {
+    driveSelect.addEventListener("change", () => {
       const selectedOption = driveSelect.options[driveSelect.selectedIndex]
       if (selectedOption && selectedOption.value) {
         state.dvdState.selectedDrive = selectedOption.value
@@ -91,7 +98,7 @@ export const dvdScreen: Screen = {
     })
 
     // Check DVD button
-    checkBtn.addEventListener('click', async () => {
+    checkBtn.addEventListener("click", async () => {
       if (!state.dvdState.selectedDrive) return
 
       state.dvdState.checking = true
@@ -99,16 +106,16 @@ export const dvdScreen: Screen = {
       state.dvdState.fileVerified = false
       updateStatus(statusContainer, state.dvdState)
       checkBtn.disabled = true
-      checkBtn.textContent = 'Checking...'
+      checkBtn.textContent = "Checking..."
 
       try {
         if (!window.electronAPI) {
-          throw new Error('Electron API not available')
+          throw new Error("Electron API not available")
         }
 
         const result = await window.electronAPI.checkDVDFile(
           state.dvdState.selectedDrive,
-          'posthog_dvd.png'
+          "posthog_dvd.png"
         )
 
         state.dvdState.checking = false
@@ -118,7 +125,8 @@ export const dvdScreen: Screen = {
           state.dvdState.error = null
         } else {
           state.dvdState.fileVerified = false
-          state.dvdState.error = 'File "posthog_dvd.png" not found on the selected drive. Please insert a valid PostHog installation DVD.'
+          state.dvdState.error =
+            'File "posthog_dvd.png" not found on the selected drive. Please insert a valid PostHog installation DVD.'
         }
       } catch (error) {
         state.dvdState.checking = false
@@ -127,7 +135,7 @@ export const dvdScreen: Screen = {
       }
 
       checkBtn.disabled = false
-      checkBtn.textContent = 'Check DVD'
+      checkBtn.textContent = "Check DVD"
       updateStatus(statusContainer, state.dvdState)
       updateNav()
     })
@@ -135,7 +143,7 @@ export const dvdScreen: Screen = {
 
   canProceed(state: InstallerState): boolean {
     return state.dvdState.fileVerified
-  }
+  },
 }
 
 async function loadDrives(
@@ -146,7 +154,8 @@ async function loadDrives(
   select.innerHTML = '<option value="">-- Scanning drives... --</option>'
 
   if (!window.electronAPI) {
-    select.innerHTML = '<option value="">-- Electron API not available --</option>'
+    select.innerHTML =
+      '<option value="">-- Electron API not available --</option>'
     return
   }
 
@@ -167,9 +176,11 @@ async function loadDrives(
     select.innerHTML = '<option value="">-- Select a drive --</option>'
 
     for (const drive of result.drives) {
-      const option = document.createElement('option')
+      const option = document.createElement("option")
       option.value = drive.path
-      option.text = `${drive.name} (${drive.path})${drive.isOptical ? ' [Optical]' : ''}`
+      option.text = `${drive.name} (${drive.path})${
+        drive.isOptical ? " [Optical]" : ""
+      }`
       select.appendChild(option)
     }
 
@@ -193,7 +204,7 @@ async function loadDrives(
   }
 }
 
-function getStatusMessage(dvdState: InstallerState['dvdState']): string {
+function getStatusMessage(dvdState: InstallerState["dvdState"]): string {
   if (dvdState.checking) {
     return `
       <div style="text-align: center;">
@@ -228,7 +239,9 @@ function getStatusMessage(dvdState: InstallerState['dvdState']): string {
   if (dvdState.selectedDrive) {
     return `
       <div>
-        Drive selected: <strong>${dvdState.driveName || dvdState.selectedDrive}</strong><br>
+        Drive selected: <strong>${
+          dvdState.driveName || dvdState.selectedDrive
+        }</strong><br>
         <div style="margin-top: 10px;">Click <strong>Check DVD</strong> to verify the installation disc.</div>
       </div>
     `
@@ -242,13 +255,16 @@ function getStatusMessage(dvdState: InstallerState['dvdState']): string {
   `
 }
 
-function getStatusClass(dvdState: InstallerState['dvdState']): string {
-  if (dvdState.fileVerified) return 'status-success'
-  if (dvdState.error) return 'status-error'
-  return 'status-pending'
+function getStatusClass(dvdState: InstallerState["dvdState"]): string {
+  if (dvdState.fileVerified) return "status-success"
+  if (dvdState.error) return "status-error"
+  return "status-pending"
 }
 
-function updateStatus(container: HTMLElement, dvdState: InstallerState['dvdState']): void {
+function updateStatus(
+  container: HTMLElement,
+  dvdState: InstallerState["dvdState"]
+): void {
   container.innerHTML = getStatusMessage(dvdState)
   container.className = getStatusClass(dvdState)
 }

@@ -11,18 +11,9 @@ export interface DVDState {
 export interface InstallerState {
   currentScreen: number
   licenseAccepted: boolean
-  installPath: string
-  selectedComponents: string[]
-  configData: ConfigData
   installComplete: boolean
   logoClickCount: number
   dvdState: DVDState
-}
-
-export interface ConfigData {
-  projectName: string
-  instanceType: 'cloud' | 'self-hosted'
-  apiKey: string
 }
 
 export interface Screen {
@@ -34,12 +25,4 @@ export interface Screen {
   ): void
   canProceed?(state: InstallerState): boolean
   onNext?(state: InstallerState): void
-}
-
-export interface Component {
-  id: string
-  name: string
-  description: string
-  size: string
-  required: boolean
 }

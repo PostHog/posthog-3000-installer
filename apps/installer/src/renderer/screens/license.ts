@@ -1,18 +1,16 @@
-// License Agreement screen
-
-import type { Screen, InstallerState } from '../../types'
+import type { Screen, InstallerState } from "../../types"
 
 export const licenseScreen: Screen = {
-  render(state: InstallerState): HTMLElement {
-    const screen = document.createElement('div')
-    screen.className = 'screen license-screen'
+  render(): HTMLElement {
+    const screen = document.createElement("div")
+    screen.className = "screen license-screen"
     screen.innerHTML = `
       <h2>License Agreement</h2>
 
       <p>Please read the following license agreement carefully.</p>
 
       <textarea class="license-text" readonly>
-PostHog 3000 - MIT License
+PostHog 3000 Demo - MIT License
 
 Copyright (c) 1998 PostHog Corp.
 
@@ -53,23 +51,27 @@ ADDITIONAL TERMS:
       </div>
 
       <p style="margin-top: 15px; font-size: 11px;">
-        You must accept the agreement to install PostHog 3000.
+        You must accept the agreement to install the PostHog 3000 Demo.
       </p>
     `
     return screen
   },
 
   setupListeners(state: InstallerState, updateNav: () => void): void {
-    const acceptRadio = document.getElementById('license-accept') as HTMLInputElement
-    const declineRadio = document.getElementById('license-decline') as HTMLInputElement
+    const acceptRadio = document.getElementById(
+      "license-accept"
+    ) as HTMLInputElement
+    const declineRadio = document.getElementById(
+      "license-decline"
+    ) as HTMLInputElement
 
     const handleChange = (): void => {
       state.licenseAccepted = acceptRadio.checked
       updateNav()
     }
 
-    acceptRadio.addEventListener('change', handleChange)
-    declineRadio.addEventListener('change', handleChange)
+    acceptRadio.addEventListener("change", handleChange)
+    declineRadio.addEventListener("change", handleChange)
 
     // Set initial state
     if (state.licenseAccepted) {
@@ -79,5 +81,5 @@ ADDITIONAL TERMS:
 
   canProceed(state: InstallerState): boolean {
     return state.licenseAccepted
-  }
+  },
 }

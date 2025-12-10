@@ -83,7 +83,7 @@ interface FileCheckResult {
 }
 
 // Detect optical drives on macOS
-function detectOpticalDrivesMac(): DVDDrive[] {
+function detectOpticalDrives(): DVDDrive[] {
   const drives: DVDDrive[] = []
 
   try {
@@ -96,27 +96,33 @@ function detectOpticalDrivesMac(): DVDDrive[] {
 
       try {
         // Use diskutil to check if it's an optical drive
-        const diskutilOutput = execSync(`diskutil info "${volumePath}" 2>/dev/null || true`, {
-          encoding: "utf-8",
-          timeout: 5000
-        })
+        const diskutilOutput = execSync(
+          `diskutil info "${volumePath}" 2>/dev/null || true`,
+          {
+            encoding: "utf-8",
+            timeout: 5000,
+          }
+        )
 
         // Check if it's optical media (CD/DVD)
-        const isOptical = diskutilOutput.includes("CD-ROM") ||
-                         diskutilOutput.includes("DVD") ||
-                         diskutilOutput.includes("Optical") ||
-                         diskutilOutput.includes("BD-ROM")
+        const isOptical =
+          diskutilOutput.includes("CD-ROM") ||
+          diskutilOutput.includes("DVD") ||
+          diskutilOutput.includes("Optical") ||
+          diskutilOutput.includes("BD-ROM")
 
         // Also check protocol type for optical
         const protocolMatch = diskutilOutput.match(/Protocol:\s+(.+)/)
-        const isOpticalProtocol = protocolMatch &&
-          (protocolMatch[1].includes("Optical") || protocolMatch[1].includes("ATAPI"))
+        const isOpticalProtocol =
+          protocolMatch &&
+          (protocolMatch[1].includes("Optical") ||
+            protocolMatch[1].includes("ATAPI"))
 
         if (isOptical || isOpticalProtocol) {
           drives.push({
             path: volumePath,
             name: volume,
-            isOptical: true
+            isOptical: true,
           })
         }
       } catch {
@@ -136,12 +142,14 @@ function detectOpticalDrivesMac(): DVDDrive[] {
           const stat = statSync(volumePath)
           if (stat.isDirectory()) {
             // Check if it looks like a DVD (has typical DVD structure or our marker file)
-            const hasPosthogFile = existsSync(join(volumePath, "posthog_dvd.png"))
+            const hasPosthogFile = existsSync(
+              join(volumePath, "posthog_dvd.png")
+            )
             if (hasPosthogFile) {
               drives.push({
                 path: volumePath,
                 name: volume,
-                isOptical: true // Treat as optical if it has our marker
+                isOptical: true, // Treat as optical if it has our marker
               })
             }
           }
@@ -175,7 +183,7 @@ function getAllMountedVolumes(): DVDDrive[] {
           drives.push({
             path: volumePath,
             name: volume,
-            isOptical: false // Will be determined by actual check
+            isOptical: false, // Will be determined by actual check
           })
         }
       } catch {
@@ -193,21 +201,21 @@ function getAllMountedVolumes(): DVDDrive[] {
 ipcMain.handle("detect-dvd-drives", async (): Promise<DVDCheckResult> => {
   try {
     if (process.platform === "darwin") {
-      const drives = detectOpticalDrivesMac()
+      const drives = detectOpticalDrives()
       return { success: true, drives }
     } else {
       // For now, only macOS is supported
       return {
         success: false,
         drives: [],
-        error: "DVD detection is currently only supported on macOS"
+        error: "Only Mac OS is supported",
       }
     }
   } catch (error) {
     return {
       success: false,
       drives: [],
-      error: `Failed to detect drives: ${error}`
+      error: `Failed to detect drives: ${error}`,
     }
   }
 })
@@ -220,25 +228,32 @@ ipcMain.handle("get-all-volumes", async (): Promise<DVDCheckResult> => {
     return {
       success: false,
       drives: [],
-      error: `Failed to list volumes: ${error}`
+      error: `Failed to list volumes: ${error}`,
     }
   }
 })
 
-ipcMain.handle("check-dvd-file", async (_event, drivePath: string, fileName: string): Promise<FileCheckResult> => {
-  try {
-    const filePath = join(drivePath, fileName)
-    const exists = existsSync(filePath)
+ipcMain.handle(
+  "check-dvd-file",
+  async (
+    _event,
+    drivePath: string,
+    fileName: string
+  ): Promise<FileCheckResult> => {
+    try {
+      const filePath = join(drivePath, fileName)
+      const exists = existsSync(filePath)
 
-    return {
-      exists,
-      drivePath,
-      filePath: exists ? filePath : undefined
-    }
-  } catch (error) {
-    return {
-      exists: false,
-      error: `Failed to check file: ${error}`
+      return {
+        exists,
+        drivePath,
+        filePath: exists ? filePath : undefined,
+      }
+    } catch (error) {
+      return {
+        exists: false,
+        error: `Failed to check file: ${error}`,
+      }
     }
   }
-})
+)
