@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PostHog Logs</title>
+</head>
+<body>
+  <div class="logs-container">
+    <div class="window">
+      <div class="title-bar" style="-webkit-app-region: drag">
+        <div class="title-bar-text">PostHog Logs</div>
+        <div class="title-bar-controls">
+          <button aria-label="Minimize" disabled></button>
+          <button aria-label="Maximize" disabled></button>
+          <button aria-label="Close" id="close-btn" style="-webkit-app-region: no-drag"></button>
+        </div>
+      </div>
+
+      <div class="window-body logs-body">
+        <div class="logs-toolbar">
+          <div class="status-indicator">
+            <span id="stack-status">⚫ Stopped</span>
+          </div>
+          <div class="toolbar-buttons">
+            <button id="clear-btn">Clear Logs</button>
+            <button id="scroll-btn">Scroll to Bottom</button>
+          </div>
+        </div>
+
+        <div class="logs-output-container sunken-panel">
+          <pre id="logs-output" class="logs-output"></pre>
+        </div>
+
+        <div class="logs-footer">
+          <span id="log-count">0 entries</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="logs.ts"></script>
+</body>
+</html>
+

@@ -1,38 +1,99 @@
 // PostHog 3000 Launcher - Main Process
 // System tray app with Windows 98 aesthetic
 
-import { join } from "node:path";
-import { app, BrowserWindow, Menu, nativeImage, Tray } from "electron";
+import { spawn, ChildProcess } from "node:child_process"
+import { join } from "node:path"
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  nativeImage,
+  shell,
+  Tray,
+} from "electron"
 
-let tray: Tray | null = null;
-let aboutWindow: BrowserWindow | null = null;
+const POSTHOG_URL = "http://localhost:8010"
+const MAX_LOG_ENTRIES = 1000
 
-// Create system tray icon and menu
-function createTray(): void {
-  // Create a simple icon (you can replace this with an actual icon file)
-  const icon = nativeImage.createEmpty();
+let tray: Tray | null = null
+let aboutWindow: BrowserWindow | null = null
+let logsWindow: BrowserWindow | null = null
 
-  // Try to load icon from resources, fallback to empty icon
-  try {
-    const iconPath = join(__dirname, "../../resources/icon.png");
-    const loadedIcon = nativeImage.createFromPath(iconPath);
-    if (!loadedIcon.isEmpty()) {
-      const resizedIcon = loadedIcon.resize({ width: 22, height: 22 });
-      // Mark as template image on macOS for proper menu bar rendering
-      resizedIcon.setTemplateImage(true);
-      tray = new Tray(resizedIcon);
-    } else {
-      // Fallback: create a simple colored icon so it's visible
-      console.warn("Could not load icon from:", iconPath);
-      tray = new Tray(icon);
-    }
-  } catch (err) {
-    console.error("Error loading tray icon:", err);
-    tray = new Tray(icon);
+// PostHog stack process management
+let stackProcess: ChildProcess | null = null
+let stackState: "stopped" | "starting" | "running" | "stopping" = "stopped"
+
+// Log storage
+interface LogEntry {
+  timestamp: Date
+  type: "stdout" | "stderr" | "system"
+  message: string
+}
+
+let logs: LogEntry[] = []
+let lastError: string | null = null
+
+function addLog(type: LogEntry["type"], message: string): void {
+  const entry: LogEntry = {
+    timestamp: new Date(),
+    type,
+    message: message.trim(),
+  }
+  logs.push(entry)
+
+  // Keep only the last MAX_LOG_ENTRIES
+  if (logs.length > MAX_LOG_ENTRIES) {
+    logs = logs.slice(-MAX_LOG_ENTRIES)
   }
 
-  // Create context menu
-  const contextMenu = Menu.buildFromTemplate([
+  // Track last error
+  if (type === "stderr" && message.trim()) {
+    lastError = message.trim().split("\n")[0].substring(0, 50)
+    updateTrayMenu()
+  }
+
+  // Send to logs window if open
+  if (logsWindow && !logsWindow.isDestroyed()) {
+    logsWindow.webContents.send("log-entry", entry)
+  }
+}
+
+function clearLogs(): void {
+  logs = []
+  lastError = null
+  updateTrayMenu()
+}
+
+// IPC handlers for logs
+ipcMain.handle("get-logs", () => {
+  return logs.map((log) => ({
+    ...log,
+    timestamp: log.timestamp.toISOString(),
+  }))
+})
+
+ipcMain.handle("clear-logs", () => {
+  clearLogs()
+  return true
+})
+
+ipcMain.handle("get-stack-state", () => {
+  return stackState
+})
+
+// Update the tray menu based on current state
+function updateTrayMenu(): void {
+  if (!tray) return
+
+  const statusLabel = {
+    stopped: "⚫ PostHog: Stopped",
+    starting: "🟡 PostHog: Starting...",
+    running: `🟢 PostHog: Running`,
+    stopping: "🟡 PostHog: Stopping...",
+  }[stackState]
+
+  const menuItems: Electron.MenuItemConstructorOptions[] = [
     {
       label: "PostHog 3000 Demo",
       enabled: false,
@@ -41,35 +102,298 @@ function createTray(): void {
       type: "separator",
     },
     {
+      label: statusLabel,
+      enabled: false,
+    },
+  ]
+
+  // Show URL when running
+  if (stackState === "running") {
+    menuItems.push({
+      label: `    → ${POSTHOG_URL}`,
+      enabled: false,
+    })
+  }
+
+  // Show last error if exists
+  if (lastError) {
+    menuItems.push({
+      label: `⚠️ ${lastError}...`,
+      enabled: false,
+    })
+  }
+
+  menuItems.push(
+    { type: "separator" },
+    {
+      label: "Open in Browser",
+      enabled: stackState === "running",
+      click: () => shell.openExternal(POSTHOG_URL),
+    },
+    {
+      label: "Start PostHog",
+      enabled: stackState === "stopped",
+      click: startPostHog,
+    },
+    {
+      label: "Stop PostHog",
+      enabled: stackState === "running",
+      click: stopPostHog,
+    },
+    {
+      label: "Restart PostHog",
+      enabled: stackState === "running",
+      click: restartPostHog,
+    },
+    { type: "separator" },
+    {
+      label: `View Logs${logs.length > 0 ? ` (${logs.length})` : ""}`,
+      click: showLogsWindow,
+    },
+    {
       label: "About PostHog 3000 Demo...",
       click: showAboutWindow,
     },
-    {
-      type: "separator",
-    },
+    { type: "separator" },
     {
       label: "Quit",
       click: () => {
-        app.quit();
+        // Stop PostHog before quitting if running
+        if (stackProcess && stackState === "running") {
+          stopPostHog().then(() => app.quit())
+        } else {
+          app.quit()
+        }
       },
-    },
-  ]);
+    }
+  )
 
-  tray.setToolTip("PostHog 3000 Demo");
-  tray.setContextMenu(contextMenu);
+  const contextMenu = Menu.buildFromTemplate(menuItems)
+  tray.setContextMenu(contextMenu)
+
+  // Update tooltip with state
+  const tooltipState = {
+    stopped: "PostHog 3000 Demo - Stopped",
+    starting: "PostHog 3000 Demo - Starting...",
+    running: `PostHog 3000 Demo - Running\n${POSTHOG_URL}`,
+    stopping: "PostHog 3000 Demo - Stopping...",
+  }[stackState]
+  tray.setToolTip(tooltipState)
+}
+
+// Start PostHog stack
+function startPostHog(): void {
+  if (stackProcess || stackState !== "stopped") {
+    addLog("system", "PostHog is already running or in transition")
+    return
+  }
+
+  addLog("system", "Starting PostHog stack...")
+  lastError = null
+  stackState = "starting"
+  updateTrayMenu()
+
+  // Spawn posthog-stack up
+  stackProcess = spawn("posthog-stack", ["up"], {
+    shell: true,
+    stdio: "pipe",
+    detached: false,
+  })
+
+  stackProcess.stdout?.on("data", (data: Buffer) => {
+    const output = data.toString()
+    addLog("stdout", output)
+
+    // Detect when stack is ready (you may need to adjust this based on actual output)
+    if (
+      output.includes("ready") ||
+      output.includes("Running") ||
+      output.includes("started")
+    ) {
+      stackState = "running"
+      updateTrayMenu()
+    }
+  })
+
+  stackProcess.stderr?.on("data", (data: Buffer) => {
+    addLog("stderr", data.toString())
+  })
+
+  stackProcess.on("spawn", () => {
+    addLog("system", "Process spawned successfully")
+    // Process started, assume running after a short delay
+    setTimeout(() => {
+      if (stackState === "starting") {
+        stackState = "running"
+        updateTrayMenu()
+      }
+    }, 3000)
+  })
+
+  stackProcess.on("error", (err) => {
+    addLog("stderr", `Failed to start PostHog: ${err.message}`)
+    stackState = "stopped"
+    stackProcess = null
+    updateTrayMenu()
+  })
+
+  stackProcess.on("exit", (code) => {
+    addLog("system", `PostHog process exited with code ${code}`)
+    stackState = "stopped"
+    stackProcess = null
+    updateTrayMenu()
+  })
+}
+
+// Stop PostHog stack
+async function stopPostHog(): Promise<void> {
+  if (stackState !== "running") {
+    addLog("system", "PostHog is not running")
+    return
+  }
+
+  addLog("system", "Stopping PostHog stack...")
+  stackState = "stopping"
+  updateTrayMenu()
+
+  // Run posthog-stack down to properly stop
+  return new Promise((resolve) => {
+    const downProcess = spawn("posthog-stack", ["down"], {
+      shell: true,
+      stdio: "pipe",
+    })
+
+    downProcess.stdout?.on("data", (data: Buffer) => {
+      addLog("stdout", data.toString())
+    })
+
+    downProcess.stderr?.on("data", (data: Buffer) => {
+      addLog("stderr", data.toString())
+    })
+
+    downProcess.on("exit", () => {
+      // Also kill the main process if still running
+      if (stackProcess) {
+        stackProcess.kill("SIGTERM")
+        stackProcess = null
+      }
+      addLog("system", "PostHog stopped")
+      stackState = "stopped"
+      updateTrayMenu()
+      resolve()
+    })
+
+    downProcess.on("error", (err) => {
+      addLog("stderr", `Error stopping: ${err.message}`)
+      // Force kill if down command fails
+      if (stackProcess) {
+        stackProcess.kill("SIGKILL")
+        stackProcess = null
+      }
+      stackState = "stopped"
+      updateTrayMenu()
+      resolve()
+    })
+
+    // Timeout fallback
+    setTimeout(() => {
+      if (stackState === "stopping") {
+        if (stackProcess) {
+          stackProcess.kill("SIGKILL")
+          stackProcess = null
+        }
+        addLog("system", "Force stopped (timeout)")
+        stackState = "stopped"
+        updateTrayMenu()
+        resolve()
+      }
+    }, 10000)
+  })
+}
+
+// Restart PostHog stack
+async function restartPostHog(): Promise<void> {
+  addLog("system", "Restarting PostHog...")
+  await stopPostHog()
+  // Small delay before starting again
+  setTimeout(() => {
+    startPostHog()
+  }, 1000)
+}
+
+// Create system tray icon and menu
+function createTray(): void {
+  // Create a simple icon (you can replace this with an actual icon file)
+  const icon = nativeImage.createEmpty()
+
+  // Try to load icon from resources, fallback to empty icon
+  try {
+    const iconPath = join(__dirname, "../../resources/icon.png")
+    const loadedIcon = nativeImage.createFromPath(iconPath)
+    if (!loadedIcon.isEmpty()) {
+      const resizedIcon = loadedIcon.resize({ width: 22, height: 22 })
+      // Mark as template image on macOS for proper menu bar rendering
+      resizedIcon.setTemplateImage(true)
+      tray = new Tray(resizedIcon)
+    } else {
+      // Fallback: create a simple colored icon so it's visible
+      console.warn("Could not load icon from:", iconPath)
+      tray = new Tray(icon)
+    }
+  } catch (err) {
+    console.error("Error loading tray icon:", err)
+    tray = new Tray(icon)
+  }
+
+  // Set initial menu
+  updateTrayMenu()
 
   // On macOS, clicking the tray icon should show the menu
   tray.on("click", () => {
-    tray?.popUpContextMenu();
-  });
+    tray?.popUpContextMenu()
+  })
+}
+
+// Show logs window
+function showLogsWindow(): void {
+  // Don't create multiple logs windows
+  if (logsWindow && !logsWindow.isDestroyed()) {
+    logsWindow.focus()
+    return
+  }
+
+  logsWindow = new BrowserWindow({
+    width: 600,
+    height: 450,
+    resizable: true,
+    frame: false,
+    backgroundColor: "#c0c0c0",
+    title: "PostHog Logs",
+    webPreferences: {
+      preload: join(__dirname, "../preload/index.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+
+  // Load the logs page
+  if (process.env.NODE_ENV === "development") {
+    logsWindow.loadURL("http://localhost:5173/logs.html")
+  } else {
+    logsWindow.loadFile(join(__dirname, "../../dist/logs.html"))
+  }
+
+  logsWindow.on("closed", () => {
+    logsWindow = null
+  })
 }
 
 // Create About window with 98.css styling
 function showAboutWindow(): void {
   // Don't create multiple about windows
   if (aboutWindow && !aboutWindow.isDestroyed()) {
-    aboutWindow.focus();
-    return;
+    aboutWindow.focus()
+    return
   }
 
   aboutWindow = new BrowserWindow({
@@ -84,47 +408,47 @@ function showAboutWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-  });
+  })
 
   // Load the about page
   if (process.env.NODE_ENV === "development") {
-    aboutWindow.loadURL("http://localhost:5173");
+    aboutWindow.loadURL("http://localhost:5173")
   } else {
-    aboutWindow.loadFile(join(__dirname, "../../dist/index.html"));
+    aboutWindow.loadFile(join(__dirname, "../../dist/index.html"))
   }
 
   aboutWindow.on("closed", () => {
-    aboutWindow = null;
-  });
+    aboutWindow = null
+  })
 }
 
 // App lifecycle
 app.whenReady().then(() => {
-  createTray();
-});
+  createTray()
+})
 
 // Prevent app from quitting when all windows are closed (keep running in tray)
 app.on("window-all-closed", () => {
-  // e.preventDefault();
-});
-
-// Clean up before quit
-app.on("before-quit", () => {
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
-});
-
-// Quit when all windows are closed (except on macOS where apps stay in menu bar)
-app.on("window-all-closed", () => {
   // For launcher, we want to keep running even when windows are closed
   // The only way to quit is through the tray menu
-});
+})
+
+// Clean up before quit
+app.on("before-quit", async () => {
+  // Stop PostHog if running
+  if (stackProcess && stackState === "running") {
+    await stopPostHog()
+  }
+
+  if (tray) {
+    tray.destroy()
+    tray = null
+  }
+})
 
 // macOS: Re-create tray if needed
 app.on("activate", () => {
   if (!tray) {
-    createTray();
+    createTray()
   }
-});
+})

@@ -123,3 +123,110 @@ html, body {
   height: 100%;
   width: 100%;
 }
+
+/* ============================================
+   Logs Viewer Styles
+   ============================================ */
+
+.logs-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+}
+
+.logs-body {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 20px);
+  padding: 8px 12px 20px 12px !important;
+}
+
+.logs-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0 8px 0;
+  background: #c0c0c0;
+}
+
+.status-indicator {
+  font-weight: bold;
+  font-size: 11px;
+}
+
+.toolbar-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.toolbar-buttons button {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.logs-output-container {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.logs-output {
+  margin: 0;
+  padding: 4px 8px;
+  font-family: 'Fixedsys', 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #000;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: #fff;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.log-line {
+  margin: 0;
+  padding: 1px 0;
+}
+
+.log-time {
+  color: #808080;
+}
+
+.log-type {
+  font-weight: bold;
+}
+
+.log-stdout .log-type {
+  color: #008000;
+}
+
+.log-stderr .log-type {
+  color: #c00;
+}
+
+.log-stderr .log-message {
+  color: #c00;
+}
+
+.log-system .log-type {
+  color: #000080;
+}
+
+.log-system .log-message {
+  color: #000080;
+}
+
+.log-message {
+  color: #000;
+}
+
+.logs-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0 0 0;
+  font-size: 10px;
+  color: #808080;
+  flex-shrink: 0;
+}

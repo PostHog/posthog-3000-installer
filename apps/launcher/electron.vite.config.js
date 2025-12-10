@@ -1,4 +1,5 @@
 import { defineConfig } from 'electron-vite'
+import { resolve } from 'path'
 
 export default defineConfig({
   main: {
@@ -14,7 +15,13 @@ export default defineConfig({
   renderer: {
     root: 'src/renderer',
     build: {
-      outDir: 'dist'
+      outDir: 'dist',
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          logs: resolve(__dirname, 'src/renderer/logs.html')
+        }
+      }
     }
   }
 })
