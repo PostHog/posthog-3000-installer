@@ -3,3 +3,5 @@ packages:
   - "packages/*"
 
 shamefullyHoist: true
+
+minimumReleaseAge: 10080
